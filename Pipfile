@@ -12,6 +12,8 @@ rope = "*"
 docker = "*"
 pylint = "*"
 s3split = {path = ".",editable = true}
+twine = "*"
+certifi = "*"
 
 [packages]
 boto3 = "*"

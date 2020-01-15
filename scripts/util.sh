@@ -93,6 +93,23 @@ function parseCli() {
       cd "${SCRIPT_PATH}/../"
       pipenv run pytest -v
     ;;
+    publish-private)
+      # publish package to private repository
+      # example --- ~/.pypirc ----
+      # [distutils]
+      # index-servers = private
+      # [private]
+      # repository: https://...
+      # username: ...
+      # password: ....
+      # ca_cert: /.../ca.pem
+      pipenv run python setup.py sdist bdist_wheel
+      if [[ ! -f "${HOME}/.pypirc" ]];then
+        echo "Create ~/.pypirc with private python repository server..."
+        exit 1
+      fi
+      pipenv run twine upload -r private dist/*
+    ;;
     start-minio-server)
       # echo "Key: ${KEY} - Value: ${VALUE}"
       # echo "Script dir is: ${SCRIPT_PATH}"
