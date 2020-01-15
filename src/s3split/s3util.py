@@ -3,6 +3,7 @@ import os
 import threading
 import json
 import re
+from distutils.util import strtobool
 from urllib.parse import urlparse
 import urllib3
 import boto3
@@ -58,7 +59,7 @@ class S3Manager():
     """Manage S3 connection with boto3"""
 
     def __init__(self, s3_access_key, s3_secret_key, s3_endpoint, s3_verify_ssl, s3_bucket, s3_path, cb_stats_update=None):
-        #self._logger = s3split.common.get_logger()
+        self._logger = s3split.common.get_logger()
         self._cb_stats_update = cb_stats_update
         self._session = boto3.session.Session()
         self.s3_bucket = s3_bucket
@@ -70,8 +71,9 @@ class S3Manager():
             self._s3_use_ssl = False
             if url.scheme == "https":
                 self._s3_use_ssl = True
+            # self._logger.info(f"=======>>>>> {type(s3_verify_ssl)} - {s3_verify_ssl} {bool(strtobool(s3_verify_ssl))} - {self._s3_use_ssl} {type(self._s3_use_ssl)}")
             self._s3_client = self._session.client('s3', aws_access_key_id=s3_access_key, aws_secret_access_key=s3_secret_key,
-                                                   endpoint_url=s3_endpoint, use_ssl=self._s3_use_ssl, verify=s3_verify_ssl,
+                                                   endpoint_url=s3_endpoint, use_ssl=self._s3_use_ssl, verify=bool(strtobool(s3_verify_ssl)),
                                                    config=botocore.config.Config(max_pool_connections=25))
         except ValueError as ex:
             raise ValueError(f"S3 ValueError: {ex}")

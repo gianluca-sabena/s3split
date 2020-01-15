@@ -9,14 +9,14 @@ def get_logger():
     logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
     return logging
 
+
 def gen_file_name(split_id):
     """generate split tar filename"""
     return f"s3split-part-{split_id}.tar"
 
+
 def split_file_by_size(path, max_size):
     """split first deep level objects (files or folder) in different tars with a maximum size)"""
-    if not os.path.isdir(path):
-        raise ValueError("path argument is not a valid directory")
     def get_path_size(start_path):
         total_size = 0
         if os.path.isfile(start_path):
@@ -28,6 +28,10 @@ def split_file_by_size(path, max_size):
                 if not os.path.islink(path):
                     total_size += os.path.getsize(path)
         return total_size
+
+    if not os.path.isdir(path):
+        raise ValueError("path argument is not a valid directory")
+
     splits = []
     tar_size = 0
     tar_paths = []

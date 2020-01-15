@@ -10,7 +10,6 @@ import s3split.s3util
 import s3split.common
 
 
-
 class Stats():
     """Global stats ovject, updated from different working threads"""
 
@@ -77,8 +76,6 @@ class Action():
         self._logger = s3split.common.get_logger()
         self._stats = Stats(args.stats_interval)
         self._executor = None
-        # Validate
-
         # Validate
         if args.action == "upload":
             self._s3uri = s3split.s3util.S3Uri(self._args.target)
@@ -157,12 +154,12 @@ class Action():
                     try:
                         data = future.result()
                         downloaded.append(data)
+                        self._logger.debug(f"(future) completed - data: {data}")
                     except Exception as exc:  # pylint: disable=broad-except
                         self._logger.error(f"(future) generated an exception: {exc}")
                         traceback_str = traceback.format_exc(exc)
                         self._logger.error(f"(future) generated an exception: {traceback_str}")
         self._stats.print()
-
 
     def upload(self):
         """upload splits to s3"""
@@ -177,8 +174,8 @@ class Action():
             name_tar = s3split.common.gen_file_name(split.get('id'))
             self._logger.debug(f"(future) start archive/upload for tar {name_tar}")
             s3manager = s3split.s3util.S3Manager(self._args.s3_access_key, self._args.s3_secret_key, self._args.s3_endpoint,
-                                                self._args.s3_verify_ssl, self._s3uri.bucket, self._s3uri.object, self._stats.update)
-            # Filter function to update tar path, required to untar in a safe location            
+                                                 self._args.s3_verify_ssl, self._s3uri.bucket, self._s3uri.object, self._stats.update)
+            # Filter function to update tar path, required to untar in a safe location
             with tempfile.TemporaryDirectory() as tmpdir:
                 tar_file = os.path.join(tmpdir, name_tar)
                 # Start tar
@@ -227,12 +224,11 @@ class Action():
                 try:
                     data = future.result()
                     tars_uploaded.append(data)
+                    self._logger.debug(f"(future) completed - data: {data}")
                 except Exception as exc:  # pylint: disable=broad-except
                     self._logger.error(f"Future generated an exception: {exc}")
                     traceback_str = traceback.format_exc(exc)
                     self._logger.error(f"Future generated an exception: {traceback_str}")
-                else:
-                    self._logger.debug(f"(future) fo Split: {data['id']} finished")
         if not self._s3_manager.upload_metadata(splits, tars_uploaded):
             raise SystemExit("Metadata json file upload failed!")
         self._stats.print()

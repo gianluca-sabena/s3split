@@ -1,0 +1,3 @@
+[MASTER]
+enable=unused-import
+max-line-length=140

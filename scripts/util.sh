@@ -35,7 +35,8 @@ function parseCli() {
       echo "    - start-minio-server               start minio server "
       echo ""
       echo "    - generate-data"
-      echo "    - test-s3split-local-minio-1gb-upload"
+      echo "    - test-s3split-local-upload"
+      echo "    - test-s3split-remote-upload"
       exit 0
   fi
   while [[ "$#" -gt 0 ]]; do
@@ -123,16 +124,16 @@ function parseCli() {
       fi
 
     ;;
-    test-s3split-local-minio-upload)
+    test-s3split-local-upload)
       echo "Run s3split with local minio"
       "./${0}" generate-data
       python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key ${MINIO_SECRET_KEY} --s3-access-key ${MINIO_ACCESS_KEY} --s3-endpoint ${MINIO_ENDPOINT} --threads 4 upload "${PATH_TEST_FILES}" "s3://s3split/cli-test-1" --tar-size 500
     ;;
-    test-s3split-remote-minio-upload)
+    test-s3split-remote-upload)
       echo "Run s3split with remote minio"
       # shellcheck disable=SC1091,SC1090
       source "${HOME}/.s3split"
-      python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key "${S3_SECRET_KEY}" --s3-access-key "${S3_ACCESS_KEY}" --s3-endpoint "${S3_ENDPOINT}" --s3-verify-ssl True --threads 2 upload "${PATH_TEST_FILES}" "${S3_BUCKET}" --tar-size 500
+      python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key "${S3_SECRET_KEY}" --s3-access-key "${S3_ACCESS_KEY}" --s3-endpoint "${S3_ENDPOINT}" --s3-verify-ssl false --threads 4 upload "${PATH_TEST_FILES}" "s3://${S3_BUCKET}/s3split-test" --tar-size 500
     ;;
     -h | *)
       ${0}

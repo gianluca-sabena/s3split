@@ -18,15 +18,16 @@ def parse_args(sys_args):
     parser.add_argument('--s3-secret-key', help='S3 secret key', required=True)
     parser.add_argument('--s3-access-key', help='S3 access key', required=True)
     parser.add_argument('--s3-endpoint', help='S3 endpoint full hostname in the form http(s)://myhost:port', required=True)
-    parser.add_argument('--s3-verify-ssl', help='verfiy S3 endpoint ssl certificate', required=False, default=True)
-    parser.add_argument('--threads', help='Number of parallel threads ', required=False, type=int, default=5)
-    parser.add_argument('--stats-interval', help='Seconds between two stats print', required=False, type=int, default=30)
+    # Boolean type does not work as expected... check https://stackoverflow.com/questions/15008758
+    parser.add_argument('--s3-verify-ssl', help='verfiy S3 endpoint ssl certificate', choices=['true', 'false'], type=str, default="true")
+    parser.add_argument('--threads', help='Number of parallel threads ', type=int, default=5)
+    parser.add_argument('--stats-interval', help='Seconds between two stats print', type=int, default=30)
     subparsers = parser.add_subparsers(dest='action')
     # Upload
     parser_upload = subparsers.add_parser("upload", help="upload -h show more help")
     parser_upload.add_argument('source', help="Local filesystem directory")
     parser_upload.add_argument('target', help="S3 path in the form s3://bucket/path (path is required!)")
-    parser_upload.add_argument('--tar-size', help='Max size in MB for a single split tar file', required=False, type=int, default=500)
+    parser_upload.add_argument('--tar-size', help='Max size in MB for a single split tar file', type=int, default=500)
     # Download
     parser_download = subparsers.add_parser("download", help="download -h show more help")
     parser_download.add_argument('source', help="S3 path in the form s3://bucket/path (path is required!)")
@@ -56,7 +57,7 @@ def run_main(sys_args):
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
-    #logger.info(f"Action: {args.action} {args.source} {args.target}")
+    # logger.info(f"Action: {args.action} {args.source} {args.target}")
     logger.info(f"Parallel threads: {args.threads}")
     try:
         if args.action == "upload":
