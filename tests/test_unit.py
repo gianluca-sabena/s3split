@@ -8,12 +8,14 @@ import common
 
 LOGGER = s3split.common.get_logger()
 
+
 @pytest.mark.s3
 def test_s3_uri():
     "parse valid s3 string"
     s3_uri = s3split.s3util.S3Uri("s3://aaa/bbb")
     test = s3_uri.bucket == "aaa" and s3_uri.object == "bbb"
     assert test
+
 
 @pytest.mark.s3
 def test_s3_uri_long():
@@ -22,11 +24,13 @@ def test_s3_uri_long():
     test = s3_uri.bucket == "aaa" and s3_uri.object == "bbb/ccc/ddd"
     assert test
 
+
 @pytest.mark.s3
 def test_s3_uri_missing_path():
     "test s3 uri without path"
     with pytest.raises(SystemExit, match=r'S3 URI must contains bucket and path s3://bucket/path'):
         assert s3split.s3util.S3Uri("s3://aaa")
+
 
 @pytest.mark.s3
 def test_s3_list_bucket():
@@ -37,6 +41,7 @@ def test_s3_list_bucket():
     # s3_manager.create_bucket()
     objects = s3_manager.list_bucket_objects()
     LOGGER.info(pformat(objects))
+
 
 @pytest.mark.s3
 def test_s3_get_metadata():

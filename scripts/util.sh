@@ -141,12 +141,17 @@ function parseCli() {
       fi
 
     ;;
-    test-s3split-local-upload)
+    test-local-upload)
       echo "Run s3split with local minio"
       "./${0}" generate-data
       python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key ${MINIO_SECRET_KEY} --s3-access-key ${MINIO_ACCESS_KEY} --s3-endpoint ${MINIO_ENDPOINT} --threads 4 upload "${PATH_TEST_FILES}" "s3://s3split/cli-test-1" --tar-size 500
     ;;
-    test-s3split-remote-upload)
+    test-local-check)
+      echo "Run s3split with local minio"
+      "./${0}" generate-data
+      python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key ${MINIO_SECRET_KEY} --s3-access-key ${MINIO_ACCESS_KEY} --s3-endpoint ${MINIO_ENDPOINT} --threads 4 check "s3://s3split/cli-test-1"
+    ;;
+    test-remote-upload)
       echo "Run s3split with remote minio"
       # shellcheck disable=SC1091,SC1090
       source "${HOME}/.s3split"

@@ -9,7 +9,7 @@ DOCKER_MINIO_IMAGE = "minio/minio:RELEASE.2019-10-12T01-39-57Z"
 MINIO_ACCESS_KEY = "test_access"
 MINIO_SECRET_KEY = "test_secret"
 MINIO_ENDPOINT = "http://127.0.0.1:9000"
-MINIO_VERIFY_SSL = False
+MINIO_VERIFY_SSL = "false"
 MINIO_BUCKET = "s3split"
 MINIO_PATH = "test"
 
@@ -30,6 +30,7 @@ def docker_minio_fixture():
         LOGGER.info("Container minio not running... starting...")
         minio.start()
     return True
+
 
 def generate_random_files(full_path, n_files, size):
     """path, n_files, number of files file size in kb"""

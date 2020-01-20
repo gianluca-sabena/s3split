@@ -23,14 +23,14 @@ def test_minio_invalid_s3uri(docker_minio_fixture):
 @pytest.mark.args
 def test_argparse_invalid_local_path(docker_minio_fixture):
     """test that exception is raised for invalid local path"""
-    with pytest.raises(ValueError, match=r"source: 'D' is not a directory"):
+    with pytest.raises(SystemExit, match=r"upload source: 'D' is not a directory"):
         assert s3split.main.run_main(["--s3-secret-key", "A", "--s3-access-key", "B", "--s3-endpoint", "C", "upload", "D", "s3://aaa/bbb"])
 
 
 @pytest.mark.args
 def test_minio_invalid_endpoint(docker_minio_fixture):
     """test minio connection error"""
-    with pytest.raises(ValueError, match=r"S3 ValueError: Invalid endpoint: C"):
+    with pytest.raises(SystemExit, match=r"S3 ValueError: Invalid endpoint: C"):
         assert s3split.main.run_main(["--s3-secret-key", "A", "--s3-access-key", "B",
                                       "--s3-endpoint", "C", "upload", "/tmp", "s3://aaa/bbb"])
 

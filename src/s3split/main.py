@@ -46,33 +46,31 @@ def run_main(sys_args):
     """run main with sys args override, this allow tests"""
     logger = s3split.common.get_logger()
     args = parse_args(sys_args)
-    action = s3split.actions.Action(args)
     event = threading.Event()
-
-    def signal_handler(sig, frame):  # pylint: disable=unused-argument
-        logger.info('You pressed Ctrl+C!... \n\nThe program will terminate AFTER ongoing file upload(s) complete\n\n')
-        # Send termination signal to threads
-        action.stop()
-    # Catch ctrl+c
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
-
     # logger.info(f"Action: {args.action} {args.source} {args.target}")
     logger.info(f"Parallel threads: {args.threads}")
     try:
+        action = s3split.actions.Action(args)
+
+        # Catch ctrl+c
+        def signal_handler(sig, frame):  # pylint: disable=unused-argument
+            logger.info('You pressed Ctrl+C!... \n\nThe program will terminate AFTER ongoing file upload(s) complete\n\n')
+            # Send termination signal to threads
+            action.stop()
+        signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGINT, signal_handler)
+
+        # Actions...
         if args.action == "upload":
             action.upload()
         elif args.action == "check":
             if not action.check():
                 raise SystemExit("Check not passed!")
         elif args.action == "download":
-            # if not action.check():
-            #     logger.error("s3 metadata file error can not download parts")
-            #     raise SystemExit()
             action.download()
     except ValueError as ex:
-        logger.error(f"ValueError: {ex}")
-        raise ValueError(ex)
+        raise SystemExit(f"ValueError: {ex}")
+        # logger.error(f"ValueError: {ex}")
 
 
 def run_cli():
