@@ -1,4 +1,7 @@
 "Unit test"
+import tempfile
+import subprocess
+import os
 from pprint import pformat
 import pytest
 import s3split.common
@@ -33,20 +36,33 @@ def test_s3_uri_missing_path():
 
 
 @pytest.mark.s3
-def test_s3_list_bucket():
-    "list bucket"
-    s3_manager = s3split.s3util.S3Manager(common.MINIO_ACCESS_KEY, common.MINIO_SECRET_KEY, common.MINIO_ENDPOINT,
-                                          common.MINIO_VERIFY_SSL, common.MINIO_BUCKET, common.MINIO_PATH)
-    # s3_manager.bucket_exsist()
-    # s3_manager.create_bucket()
-    objects = s3_manager.list_bucket_objects()
-    LOGGER.info(pformat(objects))
-
-
-@pytest.mark.s3
 def test_s3_get_metadata():
     "full s3 operation"
     s3_manager = s3split.s3util.S3Manager(common.MINIO_ACCESS_KEY, common.MINIO_SECRET_KEY, common.MINIO_ENDPOINT,
                                           common.MINIO_VERIFY_SSL, common.MINIO_BUCKET, common.MINIO_PATH)
+    s3_manager.upload_metadata(['A'], ['B'], 'X"y\'a')
     metadata = s3_manager.download_metadata()
-    LOGGER.info(pformat(metadata))
+    objects = s3_manager.list_bucket_objects()
+    # LOGGER.info(pformat(metadata))
+    # LOGGER.info(pformat(objects))
+    assert metadata.get('splits') == ['A'] and metadata.get('tars') == ['B'] and metadata.get('description') == 'X"y\'a'
+
+
+@pytest.mark.file
+def test_split_new():
+    "split files"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        open(os.path.join(tmpdir, "test.txt"), 'a').close()
+        dirs = ["dir_a_1", "dir_a_1/dir_b_1", "dir_a_1/dir_b_2"]
+        for dir in dirs:
+            os.mkdir(os.path.join(tmpdir, dir))
+            common.generate_random_files(os.path.join(tmpdir, dir), 8, 12)
+        splits = s3split.common.split_file_by_size(tmpdir, 50 * 1024)
+        ids_file = s3split.common.split_searh_file(splits, "dir_a_1/dir_b_1/file_1.txt")
+        ids_folder = s3split.common.split_searh_file(splits, "dir_a_1/dir_b_1")
+        ids_all = s3split.common.split_searh_file(splits)
+        split_dirs = s3split.common.split_get_dirs(splits)
+        # LOGGER.info(subprocess.check_output(['tree', tmpdir]).decode('utf8'))
+        # LOGGER.info(pformat(splits))
+        # LOGGER.info(f"Files: {ids_file} Folders: {ids_folder} All:{sorted(ids_all)} Directories: {sorted(split_dirs)} {sorted(dirs)}")
+        assert ids_file == [6] and ids_folder == [5, 6] and sorted(split_dirs) == sorted(dirs) and ids_all == [i+1 for i in range(6)]

@@ -3,6 +3,7 @@ import os
 import threading
 import json
 import re
+import datetime
 from distutils.util import strtobool
 from urllib.parse import urlparse
 import urllib3
@@ -55,34 +56,50 @@ class ProgressPercentage(object):
                 self._cb_stats_update(self._filename, bytes_amount, self._size)
 
 
+# class S3ManagerBuilder():
+#     """Build a new S3manager with thread safe client/session"""
+
+#     def __init__(self, s3_access_key, s3_secret_key, s3_endpoint, s3_verify_certificate, s3_bucket, s3_path, cb_stats_update=None):
+#         self._logger = s3split.common.get_logger()
+#         self._s3_access_key = s3_access_key
+#         self._s3_secret_key = s3_secret_key
+#         self._s3_endpoint = s3_endpoint
+#         self._s3_verify_certificate = s3_verify_certificate
+#         self._s3_bucket = s3_bucket
+#         self._s3_path = s3_path
+#         self._cb_stats_update = cb_stats_update
+
+#     def build():
+#         return S3Manager(client)
+
+
 class S3Manager():
     """Manage S3 connection with boto3"""
 
-    def __init__(self, s3_access_key, s3_secret_key, s3_endpoint, s3_verify_ssl, s3_bucket, s3_path, cb_stats_update=None):
+    def _wrap_exception(self, ex):
+        "exit when detect a fatal client exception"
+        raise SystemExit(f"Fatal boto3 exception - {ex}")
+
+    def __init__(self, s3_access_key, s3_secret_key, s3_endpoint, s3_verify_certificate, s3_bucket, s3_path, cb_stats_update=None):
         self._logger = s3split.common.get_logger()
         self._cb_stats_update = cb_stats_update
         self._session = boto3.session.Session()
         self.s3_bucket = s3_bucket
         self.s3_path = s3_path
         self._s3_client = None
-        # create client from session (thread safe)
         try:
             url = urlparse(s3_endpoint)
             self._s3_use_ssl = False
             if url.scheme == "https":
                 self._s3_use_ssl = True
-            # self._logger.info(f"=======>>>>> {type(s3_verify_ssl)} - {s3_verify_ssl} {bool(strtobool(s3_verify_ssl))} - {self._s3_use_ssl} {type(self._s3_use_ssl)}")
+            # Multithread https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?highlight=threads#multithreading-multiprocessing
             self._s3_client = self._session.client('s3', aws_access_key_id=s3_access_key, aws_secret_access_key=s3_secret_key,
-                                                   endpoint_url=s3_endpoint, use_ssl=self._s3_use_ssl, verify=bool(strtobool(s3_verify_ssl)),
-                                                   config=botocore.config.Config(max_pool_connections=25))
+                                                   endpoint_url=s3_endpoint, use_ssl=self._s3_use_ssl, verify=s3_verify_certificate,
+                                                   config=botocore.config.Config(max_pool_connections=10))
         except ValueError as ex:
-            raise ValueError(f"S3 ValueError: {ex}")
+            raise ValueError(f"S3 validation - {ex}")
         except ClientError as ex:
-            raise ValueError(f"S3 ClientError: {ex}")
-
-    def _wrap_exception(self, ex):
-        "exit when detect a fatal client exception"
-        raise SystemExit(f"Fatal boto3 exception: {ex}")
+            self._wrap_exception(ex)
 
     def get_client(self):
         """return boto3 client"""
@@ -134,14 +151,12 @@ class S3Manager():
         except ClientError as ex:
             self._wrap_exception(ex)
 
-    def upload_metadata(self, splits=None, tars=None):
+    def upload_metadata(self, splits=None, tars=None, description=None):
         """upload metadata file in json format"""
         content = {
-            "info": {
-                "hostname": "",
-                "uname": "",
-                "id": ""
-            },
+            "version": "0.1",
+            "date": datetime.datetime.utcnow().isoformat(),
+            "description": description,
             "tars": tars,
             "splits": splits}
         if not self.bucket_exsist():
@@ -159,6 +174,8 @@ class S3Manager():
             if stream is not None:
                 data = stream['Body'].read().decode('utf-8')
                 return json.loads(data)
+            else:
+                return None
         except ClientError as ex:
             self._wrap_exception(ex)
 
@@ -166,7 +183,7 @@ class S3Manager():
         """download object from s3"""
         full_path = os.path.join(self.s3_path, s3_object)
         progress = ProgressPercentage(self._cb_stats_update, full_path, s3_size)
-        config = TransferConfig(multipart_threshold=1024 * 1024 * 64, max_concurrency=15,
+        config = TransferConfig(multipart_threshold=1024 * 1024 * 64, max_concurrency=8,
                                 multipart_chunksize=1024 * 1024 * 64, use_threads=True)
         try:
             self._s3_client.download_fileobj(self.s3_bucket, full_path, file, Config=config, Callback=progress)
@@ -176,7 +193,7 @@ class S3Manager():
 
     def upload_file(self, fs_path):
         """upload a single file with multiple parallel (concurrency) worlkers"""
-        config = TransferConfig(multipart_threshold=1024 * 1024 * 64, max_concurrency=15,
+        config = TransferConfig(multipart_threshold=1024 * 1024 * 64, max_concurrency=8,
                                 multipart_chunksize=1024 * 1024 * 64, use_threads=True)
         final_path = self.s3_path+'/'+os.path.basename(fs_path)
         progress = ProgressPercentage(self._cb_stats_update, fs_path, os.path.getsize(fs_path))

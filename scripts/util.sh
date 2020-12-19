@@ -17,7 +17,8 @@ MINIO_SERVER_DATA="/tmp/minio-server/data"
 MINIO_ENDPOINT="http://127.0.0.1:9000"
 MINIO_ACCESS_KEY="test_access"
 MINIO_SECRET_KEY="test_secret"
-PATH_TEST_FILES="/tmp/s3cmd-test-files"
+PATH_GENERATE_FILES="/tmp/s3split/generate"
+PATH_DOWNLOAD_FILE="/tmp/s3split/download"
 # @info:  Parses and validates the CLI arguments
 # @args:	Global Arguments $@
 
@@ -45,17 +46,22 @@ function parseCli() {
     case "${KEY}" in
     # exec command here
     create-pipenv-dev)
+      declare PYPI_INDEX=""
+      if [ -f "${HOME}/.config/pip/pip.conf" ]; then
+        PYPI_INDEX=$(grep  'index-url=' "${HOME}/.config/pip/pip.conf" | cut -d"=" -f2)
+        echo "Detected ${HOME}/.config/pip/pip.conf - use PYPI_INDEX=${PYPI_INDEX}"
+      fi
       cd  "${SCRIPT_PATH}/../"
       # install current package in editable mode (use simlink to source code)
       # https://setuptools.readthedocs.io/en/latest/setuptools.html#development-mode
       # https://pipenv-fork.readthedocs.io/en/latest/basics.html#editable-dependencies-e-g-e
-      pipenv install --dev
+      pipenv install --dev --pypi-mirror "${PYPI_INDEX}"
       echo ""
       echo "========== Test run cli: pipenv run ${APP_NAME} ========== "
-      pipenv run ${APP_NAME}
+      pipenv run ${APP_NAME} -h
       echo ""
       echo "========== Test run module: pipenv run python -m helloworld.main ========== "
-      pipenv run python -m helloworld.main
+      pipenv run python -m s3split.main -h
       echo ""
     ;;
     test-pip-install)
@@ -124,38 +130,42 @@ function parseCli() {
       local NUM_FILES=128
       local NUM_FOLDERS=40
       local TOTAL=$(( SIZE * NUM_FILES * NUM_FOLDERS))
-      if [[ ! -d "${PATH_TEST_FILES}" ]]; then
-        mkdir -p "${PATH_TEST_FILES}"
+      if [[ ! -d "${PATH_GENERATE_FILES}" ]]; then
+        mkdir -p "${PATH_GENERATE_FILES}"
         local counter=1
         while [[ $counter -le $NUM_FOLDERS ]]; do
-          genfilesrandom ${PATH_TEST_FILES}/dir_${counter} ${SIZE} ${NUM_FILES}
+          genfilesrandom ${PATH_GENERATE_FILES}/dir_${counter} ${SIZE} ${NUM_FILES}
           ((counter += 1))
         done
         # To do generate 8 files * 128 Mb = 1 GB
         local SIZE=$(( 1024 * 128 ))
-        genfilesrandom ${PATH_TEST_FILES} ${SIZE} 8
-        local TOTAL; TOTAL=$(du -sh ${PATH_TEST_FILES})
+        genfilesrandom ${PATH_GENERATE_FILES} ${SIZE} 8
+        local TOTAL; TOTAL=$(du -sh ${PATH_GENERATE_FILES})
         echo "Generated total KB: ${TOTAL}"
       else
-        echo "Random data already present in ${PATH_TEST_FILES}"
+        echo "Random data already present in ${PATH_GENERATE_FILES}"
       fi
 
     ;;
     test-local-upload)
       echo "Run s3split with local minio"
       "./${0}" generate-data
-      python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key ${MINIO_SECRET_KEY} --s3-access-key ${MINIO_ACCESS_KEY} --s3-endpoint ${MINIO_ENDPOINT} --threads 4 upload "${PATH_TEST_FILES}" "s3://s3split/cli-test-1" --tar-size 500
+      python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key ${MINIO_SECRET_KEY} --s3-access-key ${MINIO_ACCESS_KEY} --s3-endpoint ${MINIO_ENDPOINT} --threads 4 upload "${PATH_GENERATE_FILES}" "s3://s3split/cli-test-1" --tar-size 500
     ;;
     test-local-check)
       echo "Run s3split with local minio"
       "./${0}" generate-data
       python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key ${MINIO_SECRET_KEY} --s3-access-key ${MINIO_ACCESS_KEY} --s3-endpoint ${MINIO_ENDPOINT} --threads 4 check "s3://s3split/cli-test-1"
     ;;
+    test-local-download)
+      echo "Run s3split with local minio"
+      python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key ${MINIO_SECRET_KEY} --s3-access-key ${MINIO_ACCESS_KEY} --s3-endpoint ${MINIO_ENDPOINT} --threads 4 download "s3://s3split/cli-test-1" "${PATH_DOWNLOAD_FILE}"
+    ;;
     test-remote-upload)
       echo "Run s3split with remote minio"
       # shellcheck disable=SC1091,SC1090
       source "${HOME}/.s3split"
-      python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key "${S3_SECRET_KEY}" --s3-access-key "${S3_ACCESS_KEY}" --s3-endpoint "${S3_ENDPOINT}" --s3-verify-ssl false --threads 4 upload "${PATH_TEST_FILES}" "s3://${S3_BUCKET}/s3split-test" --tar-size 500
+      python "${SCRIPT_PATH}/../src/s3split/main.py" --s3-secret-key "${S3_SECRET_KEY}" --s3-access-key "${S3_ACCESS_KEY}" --s3-endpoint "${S3_ENDPOINT}" --s3-verify-ssl false --threads 4 upload "${PATH_GENERATE_FILES}" "s3://${S3_BUCKET}/s3split-test" --tar-size 500
     ;;
     -h | *)
       ${0}
